@@ -12,6 +12,10 @@ body {
     width: 640px;
     height: 360px;
     background: black;
+    border: 5px solid rgba(255, 255, 255, 0.3); /* Frame */
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.3);
 }
 
 #video-placeholder {
@@ -31,6 +35,12 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out;
+}
+
+#play-button:hover {
+    transform: scale(1.1);
 }
 
 #play-button::before {
@@ -38,4 +48,20 @@ body {
     font-size: 24px;
     color: black;
     font-weight: bold;
+}
+
+/* Logo Speaker */
+#speaker-icon {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    background: url('speaker.png') center/cover no-repeat;
+    opacity: 0.7;
+    cursor: pointer;
+}
+
+#speaker-icon:hover {
+    opacity: 1;
 }
